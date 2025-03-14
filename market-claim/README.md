@@ -1,54 +1,44 @@
-# React + TypeScript + Vite
+# Frontend Challenge.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Summary
 
-Currently, two official plugins are available:
+Frontend UI for reservation page.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
+Accepts an invite code input, then a screen to connect wallet and enter email address with a button to submit
+- should do proper validation before submitting a reservation.
+- should handle errors.
+- should handle if users click submit button multiple times
 
-## Expanding the ESLint configuration
+## Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js v20.18.3
+- Prepare .env file based on the .env.example.
+```
+VITE_API_URL="Base API url"
+```
+---
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Run the project
+
+1. Clone the repository from Github:
+```
+git clone https://github.com/profullstackdeveloper/marketplace-reservation.git
+cd marketplace-reservation
+cd market-claim
+```
+2. Install packages
+```
+npm install
+```
+3. Run the project
+```
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+*** Please be sure that browser has Metamask wallet extension. And API server is running for this UI. ***
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+## Future Options
+- Add more options for several wallets by using wallet connection. For now, it only integrates with only Metamask wallet.
+- Add options to detect user or chain selection. For now, it only accepts first account which has been connected. To switch to the other account, it should be disconnected through the wallet extension at first and switch to another account.
+- Build SSR with Vite to secure the API endpoints.

@@ -1,3 +1,4 @@
+import HttpStatusCodes from '@src/common/HttpStatusCodes';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -24,3 +25,12 @@ export const authenticate = (
         }
     }
 };
+
+export const roleGuard = (req: Request, res: Response, next: NextFunction) => {
+    const adminKey = req.headers["X-ADMIN-KEY"];
+    if (adminKey && adminKey === process.env.X_ADMIN_KEY) {
+        next();
+    } else {
+        res.status(HttpStatusCodes.FORBIDDEN).json({ error: 'Invalid access!' });
+    }
+}

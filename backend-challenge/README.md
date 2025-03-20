@@ -1,17 +1,19 @@
-# Marketplace Reservation System - Backend Challenge
+# User Referral System
 
-A RESTful API service for managing invite codes and user registration in a marketplace reservation system. The system implements a referral-based registration system where users can create invite codes and new users can register using these codes.
+A RESTful API service for managing user registrations with a referral system. The system implements a referral-based registration where users can invite others using automatically generated invite codes.
 
 ## Features
 
-- Invite Code Management
-  - Create invite codes with customizable usage limits and expiration
-  - Validate and use invite codes
-  - Retrieve invite code details
 - User Registration
   - Standard user registration
-  - Registration with invite codes
-- Authentication middleware for secure endpoints
+  - Registration with referral codes
+  - Automatic invite code generation
+- Referral Tracking
+  - Track referrer and referees
+  - Limit on maximum referrals per user
+- Authentication & Authorization
+  - JWT-based authentication
+  - Role-based access control
 - TypeScript implementation with strong typing
 - PostgreSQL database with TypeORM
 
@@ -25,7 +27,7 @@ A RESTful API service for managing invite codes and user registration in a marke
 - JWT for authentication
 
 ## Project Structure
-This project is based on the DDD structure:
+This project follows DDD (Domain-Driven Design) architecture:
 ```
 src/
 ├── api/
@@ -65,19 +67,19 @@ src/
    # Modify .env files in config folder at the root of the project
 
    # Update the following variables in .env
-   NODE_ENV=development
+   NODE_ENV=
 
    ## Server ##
-   PORT=3000
-   HOST=localhost
+   PORT=
+   HOST=
 
    ## POSTGRESQL DB ##
-   DB_HOST="localhost"
-   DB_PORT=5432
-   DB_USER_NAME="postgres"
-   DB_PASSWORD="postgres"
-   DB_NAME="test_db"
-   JWT_SECRET="secret"
+   DB_HOST=
+   DB_PORT=
+   DB_USER_NAME=
+   DB_PASSWORD=
+   DB_NAME=
+   JWT_SECRET=
    ```
 
 6. Start the server:
@@ -92,28 +94,18 @@ src/
 
 ## API Endpoints
 
-### Invite Codes
-
-- **POST** `/api/invite-codes`
-  - Create a new invite code
-  - Requires authentication
-  - Body: `{ maxUses: number, referrerId: string, expiresAt?: Date }`
-
-- **GET** `/api/invite-codes/:code`
-  - Get invite code details
-  - Requires authentication
-
-### User Registration
+### User Registration with/without Invite Code
 
 - **POST** `/api/register`
   - Register a new user
-  - Requires authentication
-  - Body: `{ email: string }`
+  - Create a new invite code
+  - If contains invite code, then add referrer of its id.
+  - Body: `{ email: string, inviteCode?: string }`
 
-- **POST** `/api/register-with-invite-code`
-  - Register using an invite code
-  - Requires authentication
-  - Body: `{ email: string, inviteCode: string }`
+### Track invite codes
+- **GET** `/api/invite-codes/:inviteCode`
+  - Get invite code details
+  - Requires authentication and admin role by setting X-ADMIN-KEY in the request header.
 
 ## Design Decisions
 

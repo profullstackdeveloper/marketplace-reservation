@@ -1,88 +1,135 @@
-import { UserService } from '../../domain/services/User.service';
-import { InviteCodeService } from '../../domain/services/InviteCode.service';
-import { mockDeep } from 'jest-mock-extended';
+import { UserService } from '@src/domain/services/User.service';
+import { dataSource } from '@src/infrastructure/database/db';
+import { User } from '@src/domain/models/User.entity';
 import { Repository } from 'typeorm';
-import { User } from '../../domain/models/User';
+
+jest.mock('@src/infrastructure/database/db', () => ({
+    dataSource: {
+        getRepository: jest.fn()
+    }
+}));
 
 describe('UserService', () => {
-  const mockUserRepo = mockDeep<Repository<User>>();
-  const mockInviteCodeService = mockDeep<InviteCodeService>();
-  let userService: UserService;
+    let userService: UserService;
+    let mockUserRepository: jest.Mocked<Repository<User>>;
 
-  const mockUser = {
-    id: '1',
-    email: 'test@example.com',
-    createdAt: new Date()
-  };
-
-  const mockInviteCode = {
-    id: '1',
-    codeHash: 'hashedABCD1234',
-    maxUses: 1,
-    remainingUses: 1,
-    referrer: mockUser,
-    users: [],
-    createdAt: new Date(),
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24)
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    userService = new UserService(mockUserRepo, mockInviteCodeService);
-  });
-
-  describe('registerUser', () => {
-    it('should register user successfully', async () => {
-      mockUserRepo.findOne.mockResolvedValue(null);
-      mockUserRepo.create.mockReturnValue(mockUser);
-      mockUserRepo.save.mockResolvedValue(mockUser);
-
-      const result = await userService.registerUser('test@example.com');
-      expect(result).toEqual(mockUser);
-      expect(mockUserRepo.create).toHaveBeenCalledWith({
-        email: 'test@example.com'
-      });
-    });
-
-    it('should throw error for existing email', async () => {
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-
-      await expect(userService.registerUser('test@example.com'))
-        .rejects
-        .toThrow('Email already registered');
-    });
-  });
-
-  describe('registerUserWithInviteCode', () => {
-    it('should register user with invite code successfully', async () => {
-      mockUserRepo.findOne.mockResolvedValue(null);
-      mockInviteCodeService.validateAndUseInviteCode.mockResolvedValue(mockInviteCode);
-      mockUserRepo.create.mockReturnValue(mockUser);
-      mockUserRepo.save.mockResolvedValue(mockUser);
-
-      const result = await userService.registerUserWithInviteCode('test@example.com', 'ABCD-1234');
-      expect(result).toEqual(mockUser);
-      expect(mockUserRepo.create).toHaveBeenCalledWith({
+    const mockUser: User = {
+        id: '1',
         email: 'test@example.com',
-        inviteCode: mockInviteCode
-      });
+        inviteCode: 'TEST123',
+        createdAt: new Date(),
+    };
+
+    const mockReferrer: User = {
+        id: '2',
+        email: 'referrer@example.com',
+        inviteCode: 'REF123',
+        createdAt: new Date(),
+    };
+
+    beforeEach(() => {
+        mockUserRepository = {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            create: jest.fn(),
+            save: jest.fn(),
+            count: jest.fn(),
+        } as unknown as jest.Mocked<Repository<User>>;
+
+        (dataSource.getRepository as jest.Mock).mockReturnValue(mockUserRepository);
+        
+        userService = new UserService();
     });
 
-    it('should throw error for existing email', async () => {
-      mockUserRepo.findOne.mockResolvedValue(mockUser);
-
-      await expect(userService.registerUserWithInviteCode('test@example.com', 'ABCD-1234'))
-        .rejects
-        .toThrow('Email already registered');
+    afterEach(() => {
+        jest.clearAllMocks();
     });
 
-    it('should throw error for invalid invite code', async () => {
-      mockUserRepo.findOne.mockResolvedValue(null);
-      mockInviteCodeService.validateAndUseInviteCode.mockResolvedValue(null);
+    describe('register', () => {
+        it('should register a new user without invite code', async () => {
+            mockUserRepository.findOne.mockResolvedValue(null);
+            mockUserRepository.create.mockReturnValue(mockUser);
+            mockUserRepository.save.mockResolvedValue(mockUser);
 
-      await expect(userService.registerUserWithInviteCode('test@example.com', 'INVALID'))
-        .rejects
-        .toThrow('Invalid or expired invite code');
+            const result = await userService.register('test@example.com');
+
+            expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+                where: { email: 'test@example.com' }
+            });
+            expect(mockUserRepository.save).toHaveBeenCalled();
+            expect(result).toEqual(mockUser);
+        });
+
+        it('should throw error if email already exists', async () => {
+            mockUserRepository.findOne.mockResolvedValue(mockUser);
+
+            await expect(userService.register('test@example.com'))
+                .rejects.toThrow('Email already registered');
+            
+            expect(mockUserRepository.findOne).toHaveBeenCalledTimes(1);
+            expect(mockUserRepository.save).not.toHaveBeenCalled();
+        });
+
+        it('should register with valid invite code', async () => {
+            const newUser = { ...mockUser, referrerId: mockReferrer.id };
+            
+            mockUserRepository.findOne
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce(mockReferrer);
+            mockUserRepository.count.mockResolvedValue(0);
+            mockUserRepository.create.mockReturnValue(newUser);
+            mockUserRepository.save.mockResolvedValue(newUser);
+
+            const result = await userService.register('test@example.com', 'REF123');
+
+            expect(result.referrerId).toBe(mockReferrer.id);
+            expect(mockUserRepository.count).toHaveBeenCalledWith({
+                where: { referrerId: mockReferrer.id }
+            });
+        });
+
+        it('should throw error when invite code usage exceeds limit', async () => {
+            mockUserRepository.findOne
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce(mockReferrer);
+            mockUserRepository.count.mockResolvedValue(10);
+
+            await expect(userService.register('test@example.com', 'REF123'))
+                .rejects.toThrow('Exceed limitation for this code.');
+        });
     });
-  });
-});
+
+    describe('tracker', () => {
+        it('should return referrer and referrees data', async () => {
+            const mockReferrees = [
+                { ...mockUser, id: '3', referrerId: mockReferrer.id },
+                { ...mockUser, id: '4', referrerId: mockReferrer.id }
+            ];
+
+            mockUserRepository.findOne.mockResolvedValue(mockReferrer);
+            mockUserRepository.find.mockResolvedValue(mockReferrees);
+
+            const result = await userService.tracker('REF123');
+
+            expect(result).toEqual({
+                referrer: mockReferrer,
+                referrees: mockReferrees
+            });
+            expect(mockUserRepository.findOne).toHaveBeenCalledWith({
+                where: { inviteCode: 'REF123' }
+            });
+            expect(mockUserRepository.find).toHaveBeenCalledWith({
+                where: { referrerId: mockReferrer.id }
+            });
+        });
+
+        it('should return empty object for invalid invite code', async () => {
+            mockUserRepository.findOne.mockResolvedValue(null);
+
+            const result = await userService.tracker('INVALID');
+
+            expect(result).toEqual({});
+            expect(mockUserRepository.find).not.toHaveBeenCalled();
+        });
+    });
+}); 

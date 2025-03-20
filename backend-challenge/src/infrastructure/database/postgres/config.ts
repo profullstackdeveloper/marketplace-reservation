@@ -1,5 +1,3 @@
-import { InviteCode } from "@src/domain/models/InviteCode";
-import { User } from "@src/domain/models/User";
 import { DataSourceOptions } from "typeorm";
 
 export const PostgreOptions: DataSourceOptions = {
@@ -10,7 +8,7 @@ export const PostgreOptions: DataSourceOptions = {
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'password',
     database: process.env.DB_NAME || 'postgres',
-    entities: [User, InviteCode],
+    entities: ["src/domain/models/**/*.entity.ts"],
     synchronize: true,
     logging: false,
     migrations: ['src/infrastructure/migrations/**/*.ts'],

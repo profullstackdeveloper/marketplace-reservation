@@ -1,52 +1,83 @@
 import { Repository } from 'typeorm';
-import { InviteCodeService } from './InviteCode.service';
-import { User } from '../models/User';
+import { User } from '../models/User.entity';
+import { dataSource } from '@src/infrastructure/database/db';
+import { generateInviteCode } from '@src/common/utils';
+import { TrackerDTO } from '@src/application/dtos';
 
+const MAX_INV_USAGE = 10;
 export class UserService {
 
-    constructor(
-        private userRepository: Repository<User>,
-        private inviteCodeService: InviteCodeService
-    ){}
-
-    async registerUser (email: string): Promise<User> {
-        const existingUser = await this.userRepository.findOne({ where: {
-            email
-        } });
-        if (existingUser) {
-            throw new Error('Email already registered');
-        }
-
-        const user = this.userRepository.create({
-            email,
-        });
-        await this.userRepository.save(user);
-
-        return user;
+    private userRepository: Repository<User>;
+    constructor() { 
+        this.userRepository = dataSource.getRepository(User)
     }
 
-    async registerUserWithInviteCode(email: string, inviteCode: string): Promise<User> {
+    async register(email: string, inviteCode?: string): Promise<User> {
 
-        const existingUser = await this.userRepository.findOne({ where: {
-            email
-        } });
+        const existingUser = await this.userRepository.findOne({
+            where: {
+                email
+            }
+        });
         if (existingUser) {
             throw new Error('Email already registered');
         }
 
-        const invite = await this.inviteCodeService.validateAndUseInviteCode(
-            inviteCode
-        );
-        if (!invite) {
-            throw new Error('Invalid or expired invite code');
+        let referrer;
+
+        if (inviteCode) {
+
+            referrer = await this.userRepository.findOne({
+                where: {
+                    inviteCode
+                }
+            })
+
+
+            if (!referrer) {
+                throw new Error('Invalid invite code');
+            }
+
+            const inviteCount = await this.userRepository.count({
+                where: {
+                    referrerId: referrer.id
+                }
+            })
+
+            if (inviteCount >= MAX_INV_USAGE) {
+                throw new Error("Exceed limitation for this code.");
+            }
         }
 
-        const user = this.userRepository.create({
+        const newUser = this.userRepository.create({
             email,
-            inviteCode: invite,
+            referrerId: referrer?.id,
+            inviteCode: generateInviteCode()
         });
 
-        await this.userRepository.save(user);
-        return user;
+        return await this.userRepository.save(newUser);
+    }
+
+    async tracker (inviteCode: string): Promise<TrackerDTO> {
+        const referrer = await this.userRepository.findOne({
+            where: {
+                inviteCode
+            }
+        });
+
+        if (!referrer) {
+            return {}
+        }
+
+        const referrees = await this.userRepository.find({
+            where: {
+                referrerId: referrer?.id
+            }
+        });
+
+        return {
+            referrer,
+            referrees
+        }
     }
 }

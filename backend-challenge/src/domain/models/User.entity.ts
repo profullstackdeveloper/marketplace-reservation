@@ -2,10 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   CreateDateColumn,
 } from 'typeorm';
-import { InviteCode } from './InviteCode';
+import { generateInviteCode } from '@src/common/utils';
 
 @Entity()
 export class User {
@@ -15,8 +14,11 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @ManyToOne(() => InviteCode, (inviteCode) => inviteCode.users)
-  inviteCode?: InviteCode;
+  @Column({ unique: true, nullable: false })
+  inviteCode!: string;
+
+  @Column({nullable: true})
+  referrerId?: string;
 
   @CreateDateColumn()
   createdAt?: Date;
